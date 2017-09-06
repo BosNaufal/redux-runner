@@ -2,7 +2,7 @@
  * Copyright (c) Naufal Rabbani (http://github.com/BosNaufal)
  * Licensed Under MIT (http://opensource.org/licenses/MIT)
  * 
- * Runner JS @ Version 0.0.3
+ * Redux Runner @ Version 0.0.3
  * 
  */
 (function webpackUniversalModuleDefinition(root, factory) {
@@ -11,9 +11,9 @@
 	else if(typeof define === 'function' && define.amd)
 		define([], factory);
 	else if(typeof exports === 'object')
-		exports["Runner"] = factory();
+		exports["Redux Runner"] = factory();
 	else
-		root["Runner"] = factory();
+		root["Redux Runner"] = factory();
 })(this, function() {
 return /******/ (function(modules) { // webpackBootstrap
 /******/ 	// The module cache
@@ -66,7 +66,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	Object.defineProperty(exports, "__esModule", {
 	  value: true
 	});
-	exports.race = exports.concurrent = exports.delay = exports.call = exports.Runner = undefined;
+	exports.getFunction = exports.registerModule = exports.combineModule = exports.race = exports.concurrent = exports.delay = exports.patch = exports.select = exports.dispatch = exports.call = exports.Runner = exports.ReduxRunner = undefined;
 
 	var _wrapper = __webpack_require__(1);
 
@@ -74,14 +74,31 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var _Runner2 = _interopRequireDefault(_Runner);
 
+	var _middleware = __webpack_require__(4);
+
+	var _middleware2 = _interopRequireDefault(_middleware);
+
+	var _combineModule = __webpack_require__(5);
+
+	var _getFunction = __webpack_require__(7);
+
+	var _getFunction2 = _interopRequireDefault(_getFunction);
+
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
+	exports.ReduxRunner = _middleware2.default;
 	exports.Runner = _Runner2.default;
 	exports.call = _wrapper.call;
+	exports.dispatch = _wrapper.dispatch;
+	exports.select = _wrapper.select;
+	exports.patch = _wrapper.patch;
 	exports.delay = _wrapper.delay;
 	exports.concurrent = _wrapper.concurrent;
 	exports.race = _wrapper.race;
-	exports.default = _Runner2.default;
+	exports.combineModule = _combineModule.combineModule;
+	exports.registerModule = _combineModule.registerModule;
+	exports.getFunction = _getFunction2.default;
+	exports.default = _middleware2.default;
 
 /***/ }),
 /* 1 */
@@ -93,6 +110,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	  value: true
 	});
 	exports.call = call;
+	exports.dispatch = dispatch;
+	exports.select = select;
+	exports.patch = patch;
 	exports.concurrent = concurrent;
 	exports.race = race;
 	exports.delay = delay;
@@ -105,7 +125,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	function destructureArguments(args) {
 	  var func = args[0];
 	  args = Array.prototype.slice.call(args, 1, args.length);
-	  if (typeof func !== 'function') throw new Error("[Genfunction]: First Argument Should Be a Function");
+	  if (typeof func !== 'function') throw new Error("[Redux Runner]: First Argument Should Be a Function");
 	  return { func: func, args: args };
 	}
 
@@ -135,6 +155,32 @@ return /******/ (function(modules) { // webpackBootstrap
 	      args = _destructureArguments.args;
 
 	  return wrapIt("CALL", func, args);
+	};
+
+	function fakeFunction() {}
+
+	/**
+	 * Shortcut to make a dispatch wrapper
+	 * @return {wrapIt} Represent the object wrapper
+	 */
+	function dispatch() {
+	  return wrapIt("DISPATCH", fakeFunction, arguments[0]);
+	};
+
+	/**
+	 * Shortcut to make a select wrapper
+	 * @return {wrapIt} Represent the object wrapper
+	 */
+	function select() {
+	  return wrapIt("SELECT", fakeFunction, arguments[0]);
+	};
+
+	/**
+	 * Shortcut to make a patch wrapper
+	 * @return {wrapIt} Represent the object wrapper
+	 */
+	function patch() {
+	  return wrapIt("PATCH", fakeFunction, [arguments[0], arguments[1]]);
 	};
 
 	/**
@@ -169,9 +215,9 @@ return /******/ (function(modules) { // webpackBootstrap
 
 /***/ }),
 /* 2 */
-/***/ (function(module, exports) {
+/***/ (function(module, exports, __webpack_require__) {
 
-	'use strict';
+	"use strict";
 
 	Object.defineProperty(exports, "__esModule", {
 	  value: true
@@ -179,9 +225,6 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
 
-	var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
-
-	exports.objectHasBeenFilled = objectHasBeenFilled;
 	exports.doPromise = doPromise;
 	exports.runGenerator = runGenerator;
 	exports.makeAResponse = makeAResponse;
@@ -190,6 +233,273 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.setWrapperType = setWrapperType;
 	exports.destructureWrapper = destructureWrapper;
 	exports.default = Runner;
+
+	var _utils = __webpack_require__(3);
+
+	/**
+	 * To apply the comment in the iterator scope
+	 * @param  {Any} appliedFunction the returned value of some function
+	 * @param  {Function} done the callback after promised applied
+	 * @param  {Any} scope the variable scope of current Runner
+	 * @return {Any} Can be callback or run the next iterator
+	 */
+	function doPromise(appliedFunction, done, scope) {
+	  var runNext = scope.runNext,
+	      currentRunningFunction = scope.currentRunningFunction;
+
+	  return appliedFunction.then(function (res) {
+	    if (done) return done(res);
+	    return runNext(currentRunningFunction, res);
+	  });
+	}
+
+	// Callback Arguments is indicate that current wrapper is promise or array generator function
+	/**
+	 * Run Single Iterator of Generator Function. And it should be a wrapper
+	 * @param {Object} wrapper The wrapper to runNext
+	 * @param {Function} callback The Callback when the function of wrapper need a callback or just to use it for runGenerator callback itself
+	 * @param {Object} scope Variable Scope of current Runner
+	 * @return {Any} It can be runNext, or doPromise, or callback function
+	 */
+	function runGenerator(wrapper, callback, scope) {
+	  var Runner = scope.Runner,
+	      runNext = scope.runNext,
+	      currentRunningFunction = scope.currentRunningFunction,
+	      store = scope.store;
+	  var method = wrapper.method,
+	      func = wrapper.func,
+	      args = wrapper.args;
+
+	  if (method === "CALL") {
+	    if ((0, _utils.isFunction)(func)) {
+	      var appliedFunction = func.apply(func, args);
+
+	      if ((0, _utils.isPromise)(appliedFunction)) {
+	        return doPromise(appliedFunction, callback, scope);
+	      }
+
+	      if ((0, _utils.isGeneratorFunction)(func)) {
+	        return Runner(func, store).then(function (res) {
+	          if (callback) return callback(res);
+	          return runNext(currentRunningFunction, res);
+	        });
+	      }
+
+	      if (callback) return callback(appliedFunction);
+	      return runNext(currentRunningFunction, appliedFunction);
+	    }
+	  }
+
+	  if (method === "DISPATCH") {
+	    var payload = args;
+	    var response = store.dispatch(payload);
+	    return runNext(currentRunningFunction, response);
+	  }
+
+	  if (method === "SELECT") {
+	    var statePath = args;
+	    var _response = statePath ? store.getState()[statePath] : store.getState();
+	    return runNext(currentRunningFunction, _response);
+	  }
+
+	  if (method === "PATCH") {
+	    var _response2 = store.dispatch({
+	      type: "$$PATCHER$$",
+	      args: args,
+	      getState: store.getState
+	    });
+	    return runNext(currentRunningFunction, _response2);
+	  }
+	};
+
+	/**
+	 * To make a valid response of the current item of runParallel Function iteration
+	 * @param {Any} param.allResponses It can be an Object or Array represent the current state of all responses
+	 * @param {Number} param.index Current iteration index
+	 * @param {Any} param.res Current response that will be stored to the allResponses Object/Array
+	 * @param {Any} param.key It can be false or string to assign a value to the allResponses Object
+	 * @param {Object} param.wrapper The Wrapper
+	 * @return {Any} It can be Array or Object. It represent the new allResponses Object
+	 */
+	function makeAResponse(_ref) {
+	  var allResponses = _ref.allResponses,
+	      index = _ref.index,
+	      res = _ref.res,
+	      key = _ref.key,
+	      wrapper = _ref.wrapper;
+
+	  if (wrapper.type === "concurrent") {
+	    allResponses.push(res);
+	    return allResponses;
+	  }
+	  if (wrapper.type === "race") {
+	    if ((0, _utils.objectHasBeenFilled)(allResponses)) return allResponses;
+	    allResponses[key] = res;
+	    return allResponses;
+	  }
+	  if (key) allResponses[key] = res;else allResponses.splice(index, 0, res);
+	  return allResponses;
+	}
+
+	/**
+	 * Before do the runParallel we need to describe the sign when it should be done
+	 * @param {Array} wrappers The array of wrapper
+	 * @return {Object} Return done function to stop the runParallel and allResponses intial value
+	 */
+	function getParallelParameter(wrappers) {
+	  // get one as a sample
+	  var isArrayObject = wrappers[0].key;
+	  var allResponses = isArrayObject ? {} : [];
+	  var isDone = function isDone(wrappers) {
+	    if (isArrayObject) {
+	      return Object.keys(allResponses).length === Object.keys(wrappers).length;
+	    }
+	    return allResponses.length === wrappers.length;
+	  };
+	  return { allResponses: allResponses, isDone: isDone };
+	}
+
+	/**
+	 * Run the all the wrapper function at once
+	 * @param {Array} wrappers The array of wrapper
+	 * @param {Object} scope Variable scope of current Runner
+	 * @return {runNext} To run the next iteration of current Runner
+	 */
+	function runParallel(wrappers, scope) {
+	  var runNext = scope.runNext,
+	      currentRunningFunction = scope.currentRunningFunction;
+
+	  var _getParallelParameter = getParallelParameter(wrappers),
+	      allResponses = _getParallelParameter.allResponses,
+	      isDone = _getParallelParameter.isDone;
+
+	  var isRace = wrappers[0].type === "race";
+
+	  var _loop = function _loop() {
+	    var wrapper = wrappers[i];
+	    var index = i;
+	    var key = wrapper.key || false;
+	    runGenerator(wrapper, function (res) {
+	      allResponses = makeAResponse({ allResponses: allResponses, index: index, key: key, res: res, wrapper: wrapper });
+	      if (isDone(wrappers) || isRace && (0, _utils.objectHasBeenFilled)(allResponses)) {
+	        return runNext(currentRunningFunction, allResponses);
+	      }
+	    }, scope);
+	  };
+
+	  for (var i = 0; i < wrappers.length; i++) {
+	    _loop();
+	  }
+	}
+
+	/**
+	 * Inject The Array of wrapper to have a valid structure
+	 * @param {Any} wrappers It can be Array of wrapper or object Wrapper
+	 * @param {String} type Current Type To Inject
+	 * @return {Array} The new array of wrapper with type on each member
+	 */
+	function setWrapperType(wrappers, type) {
+	  if ((0, _utils.isArray)(wrappers)) {
+	    return wrappers.map(function (item) {
+	      return _extends({}, item, { type: type });
+	    });
+	  }
+
+	  if ((0, _utils.isObject)(wrappers)) {
+	    return Object.keys(wrappers).map(function (key) {
+	      var value = wrappers[key];
+	      return _extends({}, value, { type: type, key: key });
+	    });
+	  }
+	}
+
+	/**
+	 * Destruct after yield statement and convert it to array of wrapper. We call them "wrappers"
+	 * @param  {Any} wrapper It can be a wrapper or just ordinary object or array
+	 * @return {setWrapperType} setWrapperType represent the result of it
+	 */
+	function destructureWrapper(wrapper) {
+	  var arrayObjectFunction = (0, _utils.isObject)(wrapper) && !wrapper.method;
+	  if (arrayObjectFunction) return setWrapperType(wrapper);
+	  if (!wrapper.method) return wrapper;
+	  var func = wrapper.func;
+
+	  if (wrapper.method === "CONCURRENT") {
+	    return setWrapperType(func, "concurrent");
+	  }
+	  if (wrapper.method === "RACE") {
+	    return setWrapperType(func, "race");
+	  }
+	}
+
+	/**
+	 * The RUNNER! To run the generator function. The Runner will set the variable scope of current running Generator Function
+	 * @param {Function} genFunc Generator Function that will be runned
+	 * @param {Object} [store={}] The initial Object to starting generator function
+	 * @return {Promise} The result will be promise. So we wait the Runner till it done
+	 */
+	function Runner(genFunc) {
+	  var store = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+
+	  return new Promise(function (resolve, reject) {
+	    var currentRunningFunction = typeof genFunc === "function" ? genFunc(store) : genFunc;
+
+	    /**
+	     * The Recursive Function to run the next iteration of Current Generator Function
+	     * @param {Generator} currentRunningFunction Current iterator of generator function
+	     * @param {Any} [respon=null] The last response or the last value to pass it ot the next iterator
+	     * @return {Any} It can be Recursively run the runNext, runParallel, runGenerator Function or just resolve the promise
+	     */
+	    function runNext(currentRunningFunction) {
+	      var response = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
+
+	      var nextRun = currentRunningFunction.next(response);
+	      var wrapper = nextRun.value;
+	      var isDone = nextRun.done;
+
+	      var scope = { Runner: Runner, runNext: runNext, currentRunningFunction: currentRunningFunction, store: store };
+
+	      if (!isDone) {
+	        if (!wrapper) {
+	          throw new Error('[Redux Runner]: Please wrap the function next to yield statement inside the effects e.g. "call" or "put"');
+	        }
+
+	        var isOrdinaryGenFunc = (0, _utils.isFunction)(wrapper.func);
+	        if (isOrdinaryGenFunc) {
+	          return runGenerator(wrapper, false, scope);
+	        } else if ((0, _utils.isObject)(wrapper) || (0, _utils.isArray)(wrapper)) {
+	          var wrappers = destructureWrapper(wrapper);
+	          return runParallel(wrappers, scope);
+	        } else {
+	          return runNext(currentRunningFunction, wrapper);
+	        }
+	      } else {
+	        resolve(nextRun.value);
+	      }
+	    }
+
+	    return runNext(currentRunningFunction);
+	  });
+	};
+
+/***/ }),
+/* 3 */
+/***/ (function(module, exports) {
+
+	'use strict';
+
+	Object.defineProperty(exports, "__esModule", {
+	  value: true
+	});
+
+	var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
+
+	exports.isFunction = isFunction;
+	exports.isPromise = isPromise;
+	exports.isGeneratorFunction = isGeneratorFunction;
+	exports.isObject = isObject;
+	exports.isArray = isArray;
+	exports.objectHasBeenFilled = objectHasBeenFilled;
 
 	/**
 	 * To Check it is a Function or not
@@ -245,228 +555,176 @@ return /******/ (function(modules) { // webpackBootstrap
 	  return Object.keys(obj).length !== 0;
 	}
 
-	/**
-	 * To apply the comment in the iterator scope
-	 * @param  {Any} appliedFunction the returned value of some function
-	 * @param  {Function} done the callback after promised applied
-	 * @param  {Any} scope the variable scope of current Runner
-	 * @return {Any} Can be callback or run the next iterator
-	 */
-	function doPromise(appliedFunction, done, scope) {
-	  var runNext = scope.runNext,
-	      currentRunningFunction = scope.currentRunningFunction;
+/***/ }),
+/* 4 */
+/***/ (function(module, exports, __webpack_require__) {
 
-	  return appliedFunction.then(function (res) {
-	    if (done) return done(res);
-	    return runNext(currentRunningFunction, res);
-	  });
-	}
+	'use strict';
 
-	// Callback Arguments is indicate that current wrapper is promise or array generator function
-	/**
-	 * Run Single Iterator of Generator Function. And it should be a wrapper
-	 * @param {Object} wrapper The wrapper to runNext
-	 * @param {Function} callback The Callback when the function of wrapper need a callback or just to use it for runGenerator callback itself
-	 * @param {Object} scope Variable Scope of current Runner
-	 * @return {Any} It can be runNext, or doPromise, or callback function
-	 */
-	function runGenerator(wrapper, callback, scope) {
-	  var Runner = scope.Runner,
-	      runNext = scope.runNext,
-	      currentRunningFunction = scope.currentRunningFunction,
-	      store = scope.store;
-	  var method = wrapper.method,
-	      func = wrapper.func,
-	      args = wrapper.args;
+	Object.defineProperty(exports, "__esModule", {
+	  value: true
+	});
 
-	  if (isFunction(func)) {
-	    var appliedFunction = func.apply(func, args);
+	var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
 
-	    if (isPromise(appliedFunction)) {
-	      return doPromise(appliedFunction, callback, scope);
-	    }
+	exports.default = ReduxRunner;
 
-	    if (isGeneratorFunction(func)) {
-	      return Runner(func, store).then(function (res) {
-	        if (callback) return callback(res);
-	        return runNext(currentRunningFunction, res);
-	      });
-	    }
+	var _Runner = __webpack_require__(2);
 
-	    if (callback) return callback(appliedFunction);
-	    return runNext(currentRunningFunction, appliedFunction);
+	var _Runner2 = _interopRequireDefault(_Runner);
+
+	var _utils = __webpack_require__(3);
+
+	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+	var doAction = function doAction(action, store) {
+	  var useRunner = (0, _utils.isGeneratorFunction)(action);
+	  if (useRunner) {
+	    return (0, _Runner2.default)(action, store);
 	  }
+	  var getState = store.getState,
+	      dispatch = store.dispatch;
+
+	  return action({ getState: getState, dispatch: dispatch });
 	};
 
-	/**
-	 * To make a valid response of the current item of runParallel Function iteration
-	 * @param {Any} param.allResponses It can be an Object or Array represent the current state of all responses
-	 * @param {Number} param.index Current iteration index
-	 * @param {Any} param.res Current response that will be stored to the allResponses Object/Array
-	 * @param {Any} param.key It can be false or string to assign a value to the allResponses Object
-	 * @param {Object} param.wrapper The Wrapper
-	 * @return {Any} It can be Array or Object. It represent the new allResponses Object
-	 */
-	function makeAResponse(_ref) {
-	  var allResponses = _ref.allResponses,
-	      index = _ref.index,
-	      res = _ref.res,
-	      key = _ref.key,
-	      wrapper = _ref.wrapper;
-
-	  if (wrapper.type === "concurrent") {
-	    allResponses.push(res);
-	    return allResponses;
-	  }
-	  if (wrapper.type === "race") {
-	    if (objectHasBeenFilled(allResponses)) return allResponses;
-	    allResponses[key] = res;
-	    return allResponses;
-	  }
-	  if (key) allResponses[key] = res;else allResponses.splice(index, 0, res);
-	  return allResponses;
-	}
-
-	/**
-	 * Before do the runParallel we need to describe the sign when it should be done
-	 * @param {Array} wrappers The array of wrapper
-	 * @return {Object} Return done function to stop the runParallel and allResponses intial value
-	 */
-	function getParallelParameter(wrappers) {
-	  // get one as a sample
-	  var isArrayObject = wrappers[0].key;
-	  var allResponses = isArrayObject ? {} : [];
-	  var isDone = function isDone(wrappers) {
-	    if (isArrayObject) {
-	      return Object.keys(allResponses).length === Object.keys(wrappers).length;
-	    }
-	    return allResponses.length === wrappers.length;
-	  };
-	  return { allResponses: allResponses, isDone: isDone };
-	}
-
-	/**
-	 * Run the all the wrapper function at once
-	 * @param {Array} wrappers The array of wrapper
-	 * @param {Object} scope Variable scope of current Runner
-	 * @return {runNext} To run the next iteration of current Runner
-	 */
-	function runParallel(wrappers, scope) {
-	  var runNext = scope.runNext,
-	      currentRunningFunction = scope.currentRunningFunction;
-
-	  var _getParallelParameter = getParallelParameter(wrappers),
-	      allResponses = _getParallelParameter.allResponses,
-	      isDone = _getParallelParameter.isDone;
-
-	  var isRace = wrappers[0].type === "race";
-
-	  var _loop = function _loop() {
-	    var wrapper = wrappers[i];
-	    var index = i;
-	    var key = wrapper.key || false;
-	    var finish = runGenerator(wrapper, function (res) {
-	      allResponses = makeAResponse({ allResponses: allResponses, index: index, key: key, res: res, wrapper: wrapper });
-	      if (isDone(wrappers) || isRace && objectHasBeenFilled(allResponses)) {
-	        return runNext(currentRunningFunction, allResponses);
+	function ReduxRunner(store) {
+	  return function (next) {
+	    return function (action) {
+	      // Identity For Current Async Action
+	      var actionWithName = (typeof action === 'undefined' ? 'undefined' : _typeof(action)) === "object" && action.length === 2;
+	      if (actionWithName) {
+	        var NAME = action[0];
+	        store.dispatch({ type: NAME });
+	        return doAction(action[1], store);
 	      }
-	    }, scope);
+	      if (typeof action === "function") return doAction(action, store);
+	      // If Ordinary dispatch (for store state mutation)
+	      return next(action);
+	    };
 	  };
-
-	  for (var i = 0; i < wrappers.length; i++) {
-	    _loop();
-	  }
 	}
 
-	/**
-	 * Inject The Array of wrapper to have a valid structure
-	 * @param {Any} wrappers It can be Array of wrapper or object Wrapper
-	 * @param {String} type Current Type To Inject
-	 * @return {Array} The new array of wrapper with type on each member
-	 */
-	function setWrapperType(wrappers, type) {
-	  if (isArray(wrappers)) {
-	    return wrappers.map(function (item) {
-	      return _extends({}, item, { type: type });
-	    });
-	  }
+/***/ }),
+/* 5 */
+/***/ (function(module, exports, __webpack_require__) {
 
-	  if (isObject(wrappers)) {
-	    return Object.keys(wrappers).map(function (key) {
-	      var value = wrappers[key];
-	      return _extends({}, value, { type: type, key: key });
-	    });
-	  }
+	'use strict';
+
+	Object.defineProperty(exports, "__esModule", {
+	  value: true
+	});
+
+	var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
+
+	exports.registerModule = registerModule;
+	exports.combineModule = combineModule;
+
+	var _globalReducer = __webpack_require__(6);
+
+	var _globalReducer2 = _interopRequireDefault(_globalReducer);
+
+	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+	function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
+
+	function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
+
+	function registerModule(store, name, module) {
+	  var nextReducer = combineModule(_extends({}, store.Store.modules, _defineProperty({}, name, module))).reducer;
+	  store.replaceReducer(nextReducer);
 	}
 
-	/**
-	 * Destruct after yield statement and convert it to array of wrapper. We call them "wrappers"
-	 * @param  {Any} wrapper It can be a wrapper or just ordinary object or array
-	 * @return {setWrapperType} setWrapperType represent the result of it
-	 */
-	function destructureWrapper(wrapper) {
-	  var arrayObjectFunction = isObject(wrapper) && !wrapper.method;
-	  if (arrayObjectFunction) return setWrapperType(wrapper);
-	  if (!wrapper.method) return wrapper;
-	  var func = wrapper.func;
+	function combineModule(modules) {
+	  var flatModule = [];
+	  var reducers = [];
+	  var initialState = {};
+	  Object.keys(modules).forEach(function (name) {
+	    var module = modules[name];
+	    var reducer = module.reducer;
+	    var state = module.initialState;
+	    reducers = [].concat(_toConsumableArray(reducers), [reducer]);
 
-	  if (wrapper.method === "CONCURRENT") {
-	    return setWrapperType(func, "concurrent");
-	  }
-	  if (wrapper.method === "RACE") {
-	    return setWrapperType(func, "race");
-	  }
+	    initialState = _extends({}, initialState, _defineProperty({}, name, state));
+
+	    flatModule = [].concat(_toConsumableArray(flatModule), [_extends({}, module, { name: name })]);
+	  });
+
+	  var reducer = _globalReducer2.default.bind(null, flatModule, reducers, initialState);
+	  return { reducer: reducer, initialState: initialState, modules: modules };
 	}
 
-	/**
-	 * The RUNNER! To run the generator function. The Runner will set the variable scope of current running Generator Function
-	 * @param {Function} genFunc Generator Function that will be runned
-	 * @param {Object} [store={}] The initial Object to starting generator function
-	 * @return {Promise} The result will be promise. So we wait the Runner till it done
-	 */
-	function Runner(genFunc) {
-	  var store = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+/***/ }),
+/* 6 */
+/***/ (function(module, exports) {
 
-	  return new Promise(function (resolve, reject) {
-	    var currentRunningFunction = typeof genFunc === "function" ? genFunc(store) : genFunc;
+	"use strict";
 
-	    /**
-	     * The Recursive Function to run the next iteration of Current Generator Function
-	     * @param {Generator} currentRunningFunction Current iterator of generator function
-	     * @param {Any} [respon=null] The last response or the last value to pass it ot the next iterator
-	     * @return {Any} It can be Recursively run the runNext, runParallel, runGenerator Function or just resolve the promise
-	     */
-	    function runNext(currentRunningFunction) {
-	      var response = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
+	Object.defineProperty(exports, "__esModule", {
+	  value: true
+	});
 
-	      var nextRun = currentRunningFunction.next(response);
-	      var wrapper = nextRun.value;
-	      var isDone = nextRun.done;
+	var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
 
-	      var scope = { Runner: Runner, runNext: runNext, currentRunningFunction: currentRunningFunction, store: store };
+	exports.default = globalReducer;
 
-	      if (!isDone) {
-	        if (!wrapper) {
-	          throw new Error('[Redux Runner]: Please wrap the function next to yield statement inside the effects e.g. "call" or "put"');
-	        }
+	function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 
-	        var isOrdinaryGenFunc = isFunction(wrapper.func);
-	        if (isOrdinaryGenFunc) {
-	          return runGenerator(wrapper, false, scope);
-	        } else if (isObject(wrapper) || isArray(wrapper)) {
-	          var wrappers = destructureWrapper(wrapper);
-	          return runParallel(wrappers, scope);
+	function makeReducer(globalState, action, name, realReducer) {
+	  var subStoreState = globalState[name];
+	  return _extends({}, globalState, _defineProperty({}, name, realReducer(subStoreState, action)));
+	}
+
+	function globalReducer(modules, reducers, initialState) {
+	  var state = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : initialState;
+	  var action = arguments[4];
+
+	  state = state || initialState;
+	  var newState = state;
+
+	  switch (action.type) {
+	    case "$$PATCHER$$":
+	      {
+	        var args = action.args,
+	            getState = action.getState;
+
+	        var subStoreName = args[0];
+	        var patchFunction = args[0];
+	        if (typeof subStoreName === "string") {
+	          patchFunction = args[1];
+	          var mutation = patchFunction(getState()[subStoreName]);
+	          newState = _extends({}, state, _defineProperty({}, subStoreName, _extends({}, state[subStoreName], mutation)));
 	        } else {
-	          return runNext(currentRunningFunction, wrapper);
+	          var _mutation = patchFunction(getState());
+	          newState = _extends({}, state, _mutation);
 	        }
-	      } else {
-	        resolve(nextRun.value);
 	      }
-	    }
+	  }
 
-	    return runNext(currentRunningFunction);
-	  });
-	};
+	  return reducers.reduce(function (currentState, currentReducer, index) {
+	    return makeReducer(currentState, action, modules[index].name, currentReducer);
+	  }, newState);
+	}
+
+/***/ }),
+/* 7 */
+/***/ (function(module, exports) {
+
+	"use strict";
+
+	Object.defineProperty(exports, "__esModule", {
+	  value: true
+	});
+
+	var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
+
+	exports.default = getFunction;
+	function getFunction(thunk) {
+	  var action = thunk();
+	  var actionWithName = (typeof action === "undefined" ? "undefined" : _typeof(action)) === "object" && action.length === 2;
+	  if (actionWithName) return action[1];
+	  if (typeof action === "function") return action;
+	}
 
 /***/ })
 /******/ ])

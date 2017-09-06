@@ -14,9 +14,9 @@ module.exports = {
   output: {
     path: __dirname + '/../dist/',
     publicPath: '../dist/',
-    filename: 'runner' + (isMinify ? '.min' : '') + '.js',
+    filename: 'redux-runner' + (isMinify ? '.min' : '') + '.js',
     libraryTarget: "umd",
-    library: "Runner"
+    library: "Redux Runner"
   },
 
   module: {
@@ -39,7 +39,7 @@ module.exports = {
         "Licensed Under MIT (http://opensource.org/licenses/MIT)",
         "\n",
         "\n",
-        "Runner JS @ Version "+ npm.version,
+        "Redux Runner @ Version "+ npm.version,
         "\n"
       ])
       .join("")),

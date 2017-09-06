@@ -1,7 +1,7 @@
 {
-  "name": "runner-js",
+  "name": "redux-runner",
   "version": "0.0.3",
-  "description": "Better Async Handler To Simplify Your Async Flow Process And Code Testing",
+  "description": "Redux Thunk, Saga and Repatch All Together",
   "main": "./dist/runner.min.js",
   "scripts": {
     "dev": "webpack-dev-server --config ./webpack/webpack.config.js --inline --hot",
@@ -11,24 +11,35 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/BosNaufal/runner-js.git"
+    "url": "git+https://github.com/BosNaufal/redux-runner.git"
   },
   "keywords": [
     "saga",
+    "runner",
     "runner-js",
     "generator",
     "async",
     "await",
     "generator-function",
     "async-flow",
-    "await"
+    "await",
+    "redux",
+    "repatch",
+    "redux-saga",
+    "redux-store",
+    "redux-simple",
+    "reducer",
+    "redux-middleware",
+    "middleware",
+    "redux-test",
+    "redux-repatch"
   ],
   "author": "Naufal Rabbani <bosnaufalemail@gmail.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/BosNaufal/runner-js/issues"
+    "url": "https://github.com/BosNaufal/redux-runner/issues"
   },
-  "homepage": "https://github.com/BosNaufal/runner-js#readme",
+  "homepage": "https://github.com/BosNaufal/redux-runner#readme",
   "devDependencies": {
     "babel-core": "^6.3.17",
     "babel-loader": "^6.2.0",

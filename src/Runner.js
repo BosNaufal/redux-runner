@@ -137,7 +137,7 @@ export function runParallel(wrappers, scope) {
     const wrapper = wrappers[i]
     const index = i
     const key = wrapper.key || false
-    const finish = runGenerator(wrapper, (res) => {
+    runGenerator(wrapper, (res) => {
       allResponses = makeAResponse({ allResponses, index, key, res, wrapper })
       if (
         (isDone(wrappers)) ||
