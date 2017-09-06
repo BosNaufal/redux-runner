@@ -2,7 +2,7 @@
  * Copyright (c) Naufal Rabbani (http://github.com/BosNaufal)
  * Licensed Under MIT (http://opensource.org/licenses/MIT)
  * 
- * Redux Runner @ Version 0.0.3
+ * Redux Runner @ Version 0.0.0
  * 
  */
 (function webpackUniversalModuleDefinition(root, factory) {
