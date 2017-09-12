@@ -35,6 +35,9 @@ export default function globalReducer(modules, reducers, initialState, state = i
     }
   }
 
+  if (action.type === "$$PATCHER$$") return newState
+
+  // https://medium.com/@nate_wang/a-new-approach-for-managing-redux-actions-91c26ce8b5da
   return reducers.reduce((currentState, currentReducer, index) => {
     return makeReducer(currentState, action, modules[index].name, currentReducer)
   }, newState)

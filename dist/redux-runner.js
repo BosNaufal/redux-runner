@@ -66,17 +66,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	Object.defineProperty(exports, "__esModule", {
 	  value: true
 	});
-	exports.getFunction = exports.registerModule = exports.combineModule = exports.race = exports.concurrent = exports.delay = exports.patch = exports.select = exports.dispatch = exports.call = exports.Runner = exports.ReduxRunner = undefined;
+	exports.race = exports.concurrent = exports.delay = exports.patch = exports.select = exports.dispatch = exports.call = exports.Runner = exports.getFunction = exports.action = exports.registerModule = exports.combineModule = exports.ReduxRunner = undefined;
 
-	var _wrapper = __webpack_require__(1);
-
-	var _Runner = __webpack_require__(2);
-
-	var _Runner2 = _interopRequireDefault(_Runner);
-
-	var _middleware = __webpack_require__(4);
+	var _middleware = __webpack_require__(1);
 
 	var _middleware2 = _interopRequireDefault(_middleware);
+
+	var _action = __webpack_require__(4);
+
+	var _action2 = _interopRequireDefault(_action);
 
 	var _combineModule = __webpack_require__(5);
 
@@ -84,9 +82,19 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var _getFunction2 = _interopRequireDefault(_getFunction);
 
+	var _Runner = __webpack_require__(2);
+
+	var _Runner2 = _interopRequireDefault(_Runner);
+
+	var _wrapper = __webpack_require__(8);
+
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 	exports.ReduxRunner = _middleware2.default;
+	exports.combineModule = _combineModule.combineModule;
+	exports.registerModule = _combineModule.registerModule;
+	exports.action = _action2.default;
+	exports.getFunction = _getFunction2.default;
 	exports.Runner = _Runner2.default;
 	exports.call = _wrapper.call;
 	exports.dispatch = _wrapper.dispatch;
@@ -95,123 +103,55 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.delay = _wrapper.delay;
 	exports.concurrent = _wrapper.concurrent;
 	exports.race = _wrapper.race;
-	exports.combineModule = _combineModule.combineModule;
-	exports.registerModule = _combineModule.registerModule;
-	exports.getFunction = _getFunction2.default;
 	exports.default = _middleware2.default;
 
 /***/ }),
 /* 1 */
-/***/ (function(module, exports) {
+/***/ (function(module, exports, __webpack_require__) {
 
-	"use strict";
+	'use strict';
 
 	Object.defineProperty(exports, "__esModule", {
 	  value: true
 	});
-	exports.call = call;
-	exports.dispatch = dispatch;
-	exports.select = select;
-	exports.patch = patch;
-	exports.concurrent = concurrent;
-	exports.race = race;
-	exports.delay = delay;
+	exports.default = ReduxRunner;
 
-	/**
-	 * Extract the argument to be a Object contains function and its argument
-	 * @param {Array} args Arguments of some method
-	 * @return {Object} Represent the function and its arguments
-	 */
-	function destructureArguments(args) {
-	  var func = args[0];
-	  args = Array.prototype.slice.call(args, 1, args.length);
-	  if (typeof func !== 'function') throw new Error("[Redux Runner]: First Argument Should Be a Function");
-	  return { func: func, args: args };
-	}
+	var _Runner = __webpack_require__(2);
 
-	/**
-	 * Wrap a function
-	 * @param {String} method Method name
-	 * @param {Function} func The Function
-	 * @param {Array} args all arguments that will be passed to the function
-	 * @return {Object} The wrapper object to run
-	 */
-	function wrapIt(method, func, args) {
-	  return {
-	    wrapped: true,
-	    method: method,
-	    func: func,
-	    args: args
+	var _Runner2 = _interopRequireDefault(_Runner);
+
+	var _utils = __webpack_require__(3);
+
+	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+	var doAction = function doAction(action, store) {
+	  var useRunner = (0, _utils.isGeneratorFunction)(action);
+	  if (useRunner) {
+	    return (0, _Runner2.default)(action, store);
+	  }
+	  var getState = store.getState,
+	      dispatch = store.dispatch;
+
+	  return action({ getState: getState, dispatch: dispatch });
+	};
+
+	function ReduxRunner(store) {
+	  return function (next) {
+	    return function (action) {
+	      if (action.name && action.fn) {
+	        // Action with name
+	        store.dispatch({ type: action.name });
+	        return doAction(action.fn, store);
+	      } else if (!action.name && action.fn) {
+	        // Action without name
+	        return doAction(action.fn, store);
+	      } else {
+	        // If Ordinary dispatch (for store state mutation)
+	        return next(action);
+	      }
+	    };
 	  };
-	};
-
-	/**
-	 * Shortcut to make a call wrapper
-	 * @return {wrapIt} Represent the object wrapper
-	 */
-	function call() {
-	  var _destructureArguments = destructureArguments(arguments),
-	      func = _destructureArguments.func,
-	      args = _destructureArguments.args;
-
-	  return wrapIt("CALL", func, args);
-	};
-
-	function fakeFunction() {}
-
-	/**
-	 * Shortcut to make a dispatch wrapper
-	 * @return {wrapIt} Represent the object wrapper
-	 */
-	function dispatch() {
-	  return wrapIt("DISPATCH", fakeFunction, arguments[0]);
-	};
-
-	/**
-	 * Shortcut to make a select wrapper
-	 * @return {wrapIt} Represent the object wrapper
-	 */
-	function select() {
-	  return wrapIt("SELECT", fakeFunction, arguments[0]);
-	};
-
-	/**
-	 * Shortcut to make a patch wrapper
-	 * @return {wrapIt} Represent the object wrapper
-	 */
-	function patch() {
-	  return wrapIt("PATCH", fakeFunction, [arguments[0], arguments[1]]);
-	};
-
-	/**
-	 * Shortcut to make a concurrent wrapper
-	 * @return {wrapIt} Represent the object wrapper
-	 */
-	function concurrent(array) {
-	  return wrapIt("CONCURRENT", array);
-	};
-
-	/**
-	 * Shortcut to make a race wrapper
-	 * @return {wrapIt} Represent the object wrapper
-	 */
-	function race(array) {
-	  return wrapIt("RACE", array);
-	};
-
-	/**
-	 * Helper To make a promised delay
-	 * @return {Promise} The promise to handle delay
-	 */
-	function delay(time) {
-	  return new Promise(function (resolve, reject) {
-	    setTimeout(function () {
-	      resolve(true);
-	    }, time);
-	  });
 	}
-
-	exports.default = { call: call, concurrent: concurrent, race: race, delay: delay };
 
 /***/ }),
 /* 2 */
@@ -559,51 +499,33 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 4 */
 /***/ (function(module, exports, __webpack_require__) {
 
-	'use strict';
+	"use strict";
 
 	Object.defineProperty(exports, "__esModule", {
 	  value: true
 	});
-
-	var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
-
-	exports.default = ReduxRunner;
-
-	var _Runner = __webpack_require__(2);
-
-	var _Runner2 = _interopRequireDefault(_Runner);
+	exports.default = action;
 
 	var _utils = __webpack_require__(3);
 
-	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-	var doAction = function doAction(action, store) {
-	  var useRunner = (0, _utils.isGeneratorFunction)(action);
-	  if (useRunner) {
-	    return (0, _Runner2.default)(action, store);
-	  }
-	  var getState = store.getState,
-	      dispatch = store.dispatch;
-
-	  return action({ getState: getState, dispatch: dispatch });
-	};
-
-	function ReduxRunner(store) {
-	  return function (next) {
-	    return function (action) {
-	      // Identity For Current Async Action
-	      var actionWithName = (typeof action === 'undefined' ? 'undefined' : _typeof(action)) === "object" && action.length === 2;
-	      if (actionWithName) {
-	        var NAME = action[0];
-	        store.dispatch({ type: NAME });
-	        return doAction(action[1], store);
-	      }
-	      if (typeof action === "function") return doAction(action, store);
-	      // If Ordinary dispatch (for store state mutation)
-	      return next(action);
-	    };
+	function action(name, fn) {
+	  var isFunction = function isFunction(fn) {
+	    return typeof fn === "function";
 	  };
-	}
+	  var isString = function isString(name) {
+	    return typeof name === "string";
+	  };
+	  if (isFunction(fn) && isString(name)) {
+	    return {
+	      name: name,
+	      fn: fn
+	    };
+	  } else {
+	    return {
+	      fn: name
+	    };
+	  }
+	};
 
 /***/ }),
 /* 5 */
@@ -701,6 +623,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	      }
 	  }
 
+	  if (action.type === "$$PATCHER$$") return newState;
+
+	  // https://medium.com/@nate_wang/a-new-approach-for-managing-redux-actions-91c26ce8b5da
 	  return reducers.reduce(function (currentState, currentReducer, index) {
 	    return makeReducer(currentState, action, modules[index].name, currentReducer);
 	  }, newState);
@@ -715,16 +640,124 @@ return /******/ (function(modules) { // webpackBootstrap
 	Object.defineProperty(exports, "__esModule", {
 	  value: true
 	});
-
-	var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
-
 	exports.default = getFunction;
-	function getFunction(thunk) {
-	  var action = thunk();
-	  var actionWithName = (typeof action === "undefined" ? "undefined" : _typeof(action)) === "object" && action.length === 2;
-	  if (actionWithName) return action[1];
-	  if (typeof action === "function") return action;
+	function getFunction(thunk, payload) {
+	  var action = thunk(payload);
+	  return action.fn;
 	}
+
+/***/ }),
+/* 8 */
+/***/ (function(module, exports) {
+
+	"use strict";
+
+	Object.defineProperty(exports, "__esModule", {
+	  value: true
+	});
+	exports.call = call;
+	exports.dispatch = dispatch;
+	exports.select = select;
+	exports.patch = patch;
+	exports.concurrent = concurrent;
+	exports.race = race;
+	exports.delay = delay;
+
+	/**
+	 * Extract the argument to be a Object contains function and its argument
+	 * @param {Array} args Arguments of some method
+	 * @return {Object} Represent the function and its arguments
+	 */
+	function destructureArguments(args) {
+	  var func = args[0];
+	  args = Array.prototype.slice.call(args, 1, args.length);
+	  if (typeof func !== 'function') throw new Error("[Redux Runner]: First Argument Should Be a Function");
+	  return { func: func, args: args };
+	}
+
+	/**
+	 * Wrap a function
+	 * @param {String} method Method name
+	 * @param {Function} func The Function
+	 * @param {Array} args all arguments that will be passed to the function
+	 * @return {Object} The wrapper object to run
+	 */
+	function wrapIt(method, func, args) {
+	  return {
+	    wrapped: true,
+	    method: method,
+	    func: func,
+	    args: args
+	  };
+	};
+
+	/**
+	 * Shortcut to make a call wrapper
+	 * @return {wrapIt} Represent the object wrapper
+	 */
+	function call() {
+	  var _destructureArguments = destructureArguments(arguments),
+	      func = _destructureArguments.func,
+	      args = _destructureArguments.args;
+
+	  return wrapIt("CALL", func, args);
+	};
+
+	function fakeFunction() {}
+
+	/**
+	 * Shortcut to make a dispatch wrapper
+	 * @return {wrapIt} Represent the object wrapper
+	 */
+	function dispatch() {
+	  return wrapIt("DISPATCH", fakeFunction, arguments[0]);
+	};
+
+	/**
+	 * Shortcut to make a select wrapper
+	 * @return {wrapIt} Represent the object wrapper
+	 */
+	function select() {
+	  return wrapIt("SELECT", fakeFunction, arguments[0]);
+	};
+
+	/**
+	 * Shortcut to make a patch wrapper
+	 * @return {wrapIt} Represent the object wrapper
+	 */
+	function patch() {
+	  return wrapIt("PATCH", fakeFunction, [arguments[0], arguments[1]]);
+	};
+
+	/**
+	 * Shortcut to make a concurrent wrapper
+	 * @return {wrapIt} Represent the object wrapper
+	 */
+	function concurrent(array) {
+	  return wrapIt("CONCURRENT", array);
+	};
+
+	/**
+	 * Shortcut to make a race wrapper
+	 * @return {wrapIt} Represent the object wrapper
+	 */
+	function race(array) {
+	  return wrapIt("RACE", array);
+	};
+
+	/**
+	 * Helper To make a promised delay
+	 * @return {Promise} The promise to handle delay
+	 */
+	function delay(time) {
+	  return new Promise(function (resolve, reject) {
+	    setTimeout(function () {
+	      resolve(true);
+	    }, time);
+	  });
+	}
+
+	exports.default = { call: call, concurrent: concurrent, race: race, delay: delay };
 
 /***/ })
 /******/ ])
