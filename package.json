@@ -1,6 +1,6 @@
 {
   "name": "redux-runner",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Redux Thunk, Saga and Repatch All Together",
   "main": "./dist/runner.min.js",
   "scripts": {
