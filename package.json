@@ -2,7 +2,7 @@
   "name": "redux-runner",
   "version": "0.0.2",
   "description": "Redux Thunk, Saga and Repatch All Together",
-  "main": "./dist/runner.min.js",
+  "main": "./dist/redux-runner.min.js",
   "scripts": {
     "dev": "webpack-dev-server --config ./webpack/webpack.config.js --inline --hot",
     "bundle": "webpack --config ./webpack/webpack-bundle.config.js && webpack --config ./webpack/webpack-bundle.config.js -p",
