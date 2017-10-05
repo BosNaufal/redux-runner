@@ -30,6 +30,16 @@ export function isGeneratorFunction(func) {
 
 
 /**
+ * To Check it is an String or not
+ * @param {String} str The String to Check
+ * @return {Boolean} The result
+ */
+export function isString(str) {
+  return typeof(str) === 'string'
+}
+
+
+/**
  * To Check it is an Object or not
  * @param {Object} obj The Object to Check
  * @return {Boolean} The result

@@ -2,7 +2,7 @@
  * Copyright (c) Naufal Rabbani (http://github.com/BosNaufal)
  * Licensed Under MIT (http://opensource.org/licenses/MIT)
  * 
- * Redux Runner @ Version 0.0.3
+ * Redux Runner @ Version 0.0.4
  * 
  */
 (function webpackUniversalModuleDefinition(root, factory) {
@@ -439,6 +439,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.isFunction = isFunction;
 	exports.isPromise = isPromise;
 	exports.isGeneratorFunction = isGeneratorFunction;
+	exports.isString = isString;
 	exports.isObject = isObject;
 	exports.isArray = isArray;
 	exports.objectHasBeenFilled = objectHasBeenFilled;
@@ -468,6 +469,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	 */
 	function isGeneratorFunction(func) {
 	  return typeof func.prototype.next === "function";
+	}
+
+	/**
+	 * To Check it is an String or not
+	 * @param {String} str The String to Check
+	 * @return {Boolean} The result
+	 */
+	function isString(str) {
+	  return typeof str === 'string';
 	}
 
 	/**
