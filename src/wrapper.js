@@ -46,7 +46,8 @@ function fakeFunction () {}
  * @return {wrapIt} Represent the object wrapper
  */
 export function dispatch()  {
-  return wrapIt("DISPATCH", fakeFunction, arguments[0])
+  let { func, args } = destructureArguments(arguments)
+  return wrapIt("DISPATCH", func, args)
 };
 
 

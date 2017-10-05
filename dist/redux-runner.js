@@ -2,7 +2,7 @@
  * Copyright (c) Naufal Rabbani (http://github.com/BosNaufal)
  * Licensed Under MIT (http://opensource.org/licenses/MIT)
  * 
- * Redux Runner @ Version 0.0.2
+ * Redux Runner @ Version 0.0.3
  * 
  */
 (function webpackUniversalModuleDefinition(root, factory) {
@@ -176,6 +176,8 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var _utils = __webpack_require__(3);
 
+	function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
+
 	/**
 	 * To apply the comment in the iterator scope
 	 * @param  {Any} appliedFunction the returned value of some function
@@ -231,24 +233,24 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }
 
 	  if (method === "DISPATCH") {
-	    var payload = args;
-	    var response = store.dispatch(payload);
-	    return runNext(currentRunningFunction, response);
+	    store.dispatch(func.apply(undefined, _toConsumableArray(args))).then(function (response) {
+	      return runNext(currentRunningFunction, response);
+	    });
 	  }
 
 	  if (method === "SELECT") {
 	    var statePath = args;
-	    var _response = statePath ? store.getState()[statePath] : store.getState();
-	    return runNext(currentRunningFunction, _response);
+	    var response = statePath ? store.getState()[statePath] : store.getState();
+	    return runNext(currentRunningFunction, response);
 	  }
 
 	  if (method === "PATCH") {
-	    var _response2 = store.dispatch({
+	    var _response = store.dispatch({
 	      type: "$$PATCHER$$",
 	      args: args,
 	      getState: store.getState
 	    });
-	    return runNext(currentRunningFunction, _response2);
+	    return runNext(currentRunningFunction, _response);
 	  }
 	};
 
@@ -499,7 +501,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 4 */
 /***/ (function(module, exports, __webpack_require__) {
 
-	"use strict";
+	'use strict';
 
 	Object.defineProperty(exports, "__esModule", {
 	  value: true
@@ -509,13 +511,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	var _utils = __webpack_require__(3);
 
 	function action(name, fn) {
-	  var isFunction = function isFunction(fn) {
-	    return typeof fn === "function";
-	  };
-	  var isString = function isString(name) {
-	    return typeof name === "string";
-	  };
-	  if (isFunction(fn) && isString(name)) {
+	  if ((0, _utils.isFunction)(fn) && (0, _utils.isString)(name)) {
 	    return {
 	      name: name,
 	      fn: fn
@@ -710,7 +706,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @return {wrapIt} Represent the object wrapper
 	 */
 	function dispatch() {
-	  return wrapIt("DISPATCH", fakeFunction, arguments[0]);
+	  var _destructureArguments2 = destructureArguments(arguments),
+	      func = _destructureArguments2.func,
+	      args = _destructureArguments2.args;
+
+	  return wrapIt("DISPATCH", func, args);
 	};
 
 	/**

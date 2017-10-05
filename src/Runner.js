@@ -56,9 +56,9 @@ export function runGenerator(wrapper, callback, scope) {
   }
 
   if (method === "DISPATCH") {
-    const payload = args
-    const response = store.dispatch(payload)
-    return runNext(currentRunningFunction, response)
+    store.dispatch(func(...args)).then(response => {
+      return runNext(currentRunningFunction, response)
+    })
   }
 
   if (method === "SELECT") {
